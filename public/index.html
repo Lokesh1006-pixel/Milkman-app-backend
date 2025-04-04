@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Milkman App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    .dark-mode {
+      background-color: #333;
+      color: white;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+    }
+    input, button, select {
+      padding: 8px;
+      margin: 5px;
+    }
+    .customer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px;
+      background: #fff;
+      margin: 5px 0;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Milkman App</h1>
+    <button onclick="toggleTheme()">Toggle Theme</button>
+    <h3>Add Customer</h3>
+    <input type="text" id="name" placeholder="Customer Name">
+    <input type="number" id="price" placeholder="Price per Kg">
+    <button onclick="addCustomer()">Add</button>
+
+    <h3>Customers</h3>
+    <div id="customerList"></div>
+
+    <h3>Add Milk Delivery</h3>
+    <select id="deliveryCustomer"></select>
+    <input type="date" id="deliveryDate">
+    <input type="number" id="deliveryQty" placeholder="Quantity (L)">
+    <button onclick="addDelivery()">Record</button>
+
+    <h3>Delete Customers</h3>
+    <button onclick="deleteSelected()">Delete Selected</button>
+
+    <h3>Monthly Summary</h3>
+    <input type="month" id="summaryMonth">
+    <button onclick="getSummary()">Get Summary</button>
+    <button onclick="exportPDF()">Export PDF</button>
+    <button onclick="exportExcel()">Export Excel</button>
+    <pre id="summary"></pre>
+  </div>
+
+  <script>
+    let selected = [];
+
+    function toggleTheme() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    function fetchCustomers() {
+      fetch('/customers')
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById('customerList');
+          const dropdown = document.getElementById('deliveryCustomer');
+          list.innerHTML = '';
+          dropdown.innerHTML = '';
+          data.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'customer';
+            div.innerHTML = `
+              <span>${c.name} (₹${c.price_per_kg}/kg)</span>
+              <label><input type="checkbox" onchange="toggleSelect(${c.id}, this.checked)"></label>
+            `;
+            list.appendChild(div);
+
+            const option = document.createElement('option');
+            option.value = c.id;
+            option.textContent = c.name;
+            dropdown.appendChild(option);
+          });
+        });
+    }
+
+    function toggleSelect(id, checked) {
+      if (checked) {
+        selected.push(id);
+      } else {
+        selected = selected.filter(x => x !== id);
+      }
+    }
+
+    function addCustomer() {
+      const name = document.getElementById('name').value;
+      const price = document.getElementById('price').value;
+      fetch('/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price_per_kg: price })
+      }).then(() => {
+        document.getElementById('name').value = '';
+        document.getElementById('price').value = '';
+        fetchCustomers();
+      });
+    }
+
+    function deleteSelected() {
+      fetch('/customers/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selected })
+      }).then(() => {
+        selected = [];
+        fetchCustomers();
+      });
+    }
+
+    function addDelivery() {
+      const customer_id = document.getElementById('deliveryCustomer').value;
+      const date = document.getElementById('deliveryDate').value;
+      const quantity = document.getElementById('deliveryQty').value;
+      fetch('/deliveries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id, date, quantity })
+      }).then(() => {
+        alert('Delivery recorded');
+        document.getElementById('deliveryQty').value = '';
+      });
+    }
+
+    function getSummary() {
+      const month = document.getElementById('summaryMonth').value;
+      fetch(`/summary/${month}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('summary').textContent = JSON.stringify(data, null, 2);
+        });
+    }
+
+    function exportPDF() {
+      const month = document.getElementById('summaryMonth').value;
+      window.open(`/export/pdf/${month}`);
+    }
+
+    function exportExcel() {
+      const month = document.getElementById('summaryMonth').value;
+      window.open(`/export/excel/${month}`);
+    }
+
+    fetchCustomers();
+  </script>
+</body>
+</html>
