@@ -9,14 +9,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || '*',
+}));
 app.set('json spaces', 2); // Enable pretty print for JSON responses
 
 // Serve frontend from public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Database setup
-const dbPath = path.join(__dirname, 'milkman_data.db');
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'milkman_data.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) console.error(err.message);
     console.log('Connected to SQLite database');
